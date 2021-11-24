@@ -61,9 +61,9 @@ router.put('/:id',auth,async(req,res)=>{
     try{
         if(!req.user.adminLr) return res.status(402).json("access denied")
         await Product.findById(req.params.id)
-        .then((product)=>{
+        .then(async(product)=>{
             if(!product) return res.status(402).json("Product not found")
-            let productUpdate=Product.findByIdAndUpdate(req.params.id,{
+           await Product.findByIdAndUpdate(req.params.id,{
                 title:req.body.title,
                 des:req.body.des,
                 categories:req.body.categories,
@@ -74,11 +74,11 @@ router.put('/:id',auth,async(req,res)=>{
             },{
                 new:true
             })
-            // productUpdate=productUpdate.save()
-            if(!productUpdate)
-            return res.status(402).json('The product cannot be updated')
-         
-            res.status(200).json("Update Success")
+           
+            // if(!productUpdate)
+            // return res.status(402).json('The product cannot be updated')
+            // console.log(productUpdate)
+            res.status(200).json("Update Successfully")
         })
     }
     catch(err){

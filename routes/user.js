@@ -177,9 +177,9 @@ router.put('/admin/:id',auth,async(req,res)=>{
     try{
         if(!req.user.adminLr) return res.status(402).json("access denied")
         await User.findById(req.params.id)
-        .then((user)=>{
+        .then(async(user)=>{
             if(!user) return res.status(402).json("Error Occured")
-            let userUpdate=User.findByIdAndUpdate(req.params.id,{
+           await User.findByIdAndUpdate(req.params.id,{
                 profile:req.body.profile,
                 name:req.body.name,
                 adminLr:req.body.adminLr,
@@ -198,9 +198,9 @@ router.put('/admin/:id',auth,async(req,res)=>{
 router.put('/:id',auth,async(req,res)=>{
     try{
         await User.findById(req.params.id)
-        .then((user)=>{
+        .then(async(user)=>{
             if(!user) return res.status(402).json("Error Occured")
-            let userUpdate=User.findByIdAndUpdate(req.params.id,{
+            await User.findByIdAndUpdate(req.params.id,{
                 profile:req.body.profile,
                 name:req.body.name,
             },{

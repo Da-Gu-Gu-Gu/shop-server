@@ -8,7 +8,8 @@ const cors=require('cors')
 //routes 
 const user=require('./routes/user')
 const product=require('./routes/product')
-// const order=require('./routes/order')
+const order=require('./routes/order')
+const cart=require('./routes/cart')
 
 //middleware
 dotenv.config()
@@ -18,7 +19,8 @@ app.use(express.json())
 
 app.use('/api/user/',user)
 app.use('/api/product/',product)
-// app.use('/api/order/',order)
+app.use('/api/order/',order)
+app.use('/api/cart/',cart)
 
 mongoose.connect(process.env.MONGO_DB)
 .then(()=>{
