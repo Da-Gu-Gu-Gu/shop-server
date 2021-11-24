@@ -5,6 +5,7 @@ const jwt=require('jsonwebtoken')
 const bcrypt=require('bcrypt')
 const AccessToken=require('../models/accesstoken')
 const sendEmail=require('../utils/email')
+const auth=require('../middleware/auth')
 
 //Register
 
@@ -12,22 +13,25 @@ router.post('/register',async(req,res)=>{
     try{
         let emailCheck=await User.findOne({email:req.body.email})
         if(emailCheck) return res.status(402).json("Email already exist")
-        let user=await User.create({
+        let hashPassword=bcrypt.hash(req.body.password,10)
+        .then((hashPassword)=>{
+        let user=new User({
             name:req.body.name,
             email:req.body.email,
-            password:bcrypt.hash(req.body.password,10),
+            password:hashPassword,
             profile:req.body.profile,
             adminLr:req.body.adminLr
         })
 
-        await user.save()
+         user.save()
         let accessToken=new AccessToken({
             userId:user._id,
-            token:bcrypt.hash(Date.now(),10)
-        }).save()
-        .then(()=>{
+            token:`fadsf13v90${Math.random()*1000}${user._id}f2hgnvk`
+        })
+       accessToken.save()
+       console.log(accessToken)
             const message=`${process.env.BASE_URL}/api/user/verify/${user._id}/${accessToken.token}`
-            await sendEmail(user.email,"Verify Account",message)
+             sendEmail(user.email,"Verify Account",message)
             res.status(200).json("Email sent your account plz verify")
         })
     }
@@ -37,7 +41,7 @@ router.post('/register',async(req,res)=>{
 })
 
 //verfiy
-router.get('verify/:id/:token',async(req,res)=>{
+router.put('/verify/:id/:token',async(req,res)=>{
     try{
         let userCheck=await User.findById(req.params.id)
         if(!userCheck) return res.status(402).json("Invalid User")
@@ -47,6 +51,8 @@ router.get('verify/:id/:token',async(req,res)=>{
 
         await User.findByIdAndUpdate(req.params.id,{
             verify:true
+        },{
+            new:true
         })
         await AccessToken.findByIdAndDelete(tokenCheck._id)
 
@@ -60,17 +66,23 @@ router.get('verify/:id/:token',async(req,res)=>{
 //Login
 router.post('/login',async(req,res)=>{
     try{
-        await User.findOne({email:req.email})
+        await User.findOne({email:req.body.email})
         .then(savedUser=>{
+            
             if(!savedUser) return res.status(402).json("User Not Found")
-            bcrypt.compareSync(savedUser.password,req.password)
-            .then(match=>{
-                if(match){
-                    jwt.sign(savedUser._id,process.env.JWT_SEC)
-                    return res.status(200).json('Successfully login')
+
+            if(!savedUser.verify)return res.status(402).json("Plz verify your account first")
+                if(bcrypt.compareSync(req.body.password,savedUser.password)){
+                    console.log(savedUser)
+                    const token=jwt.sign({
+                        userId:savedUser._id
+                    },
+                    process.env.JWT_SEC
+                )
+                    res.status(200).send({token:token})
                 }
                 return res.status(402).json("Invalid email or password")
-            })
+            
         })
     }
     catch (err){
@@ -79,19 +91,19 @@ router.post('/login',async(req,res)=>{
 })
 
 //forgetpassword
-router.post('/forgotpassword/',async(req,res)=>{
+router.post('/forgotpassword',async(req,res)=>{
     try{
         let emailCheck=await User.findOne({email:req.body.email})
         if(!emailCheck) return res.status(402).json("Invalid Email")
 
         let token=new AccessToken({
             userId:emailCheck._id,
-            token:bcrypt.hash(Date.now(),10)
-        }).save()
-
+            token:`fadsf13v90${Math.random()*1000}${emailCheck._id}f2hgnvk`
+        })
+        token.save()
         .then(()=>{
             const message=`${process.env.BASE_URL}/api/user/resetpassword/${emailCheck._id}/${token.token}`
-            await sendEmail(emailCheck.email,"Password Reset",message)
+             sendEmail(emailCheck.email,"Password Reset",message)
             res.status(200).json("Email sent your account")
         })
         
@@ -103,7 +115,7 @@ router.post('/forgotpassword/',async(req,res)=>{
 })
 
 //resetpassword
-router.post('/resetpassword/:id/:token',async(req,res)=>{
+router.put('/resetpassword/:id/:token',async(req,res)=>{
     try{
         let userCheck=await User.findById(req.params.id)
         if(!userCheck) return res.status(402).json("Invalid User")
@@ -114,8 +126,9 @@ router.post('/resetpassword/:id/:token',async(req,res)=>{
         const {password,confirmPassword}=req.body
 
         if(password!==confirmPassword) return res.status(402).json("Password Doesn't match")
+     
         let passwordUpdate=await User.findByIdAndUpdate(req.params.id,{
-            password:bcrypt.hash(password,10)
+            password:await bcrypt.hashSync(password,10)
         },{
             new:true
         })
@@ -130,8 +143,9 @@ router.post('/resetpassword/:id/:token',async(req,res)=>{
 
 //get
 
-router.get('/getall',async(req,res)=>{
+router.get('/getall',auth,async(req,res)=>{
     try{
+        if(!req.user.adminLr) return res.status(402).json("access denied")
         await User.find()
         .then((user)=>{
             if(!user) return res.status(402).json("Error Occured")
@@ -143,9 +157,10 @@ router.get('/getall',async(req,res)=>{
     }
 })
 
-router.get('/:id',async(req,res)=>{
+router.get('/:id',auth,async(req,res)=>{
     try{
-        await User.findById(req.params._id)
+        if(!req.user.adminLr) return res.status(402).json("access denied")
+        await User.findById(req.params.id)
         .then((user)=>{
             if(!user) return res.status(402).json("Error Occured")
             res.status(200).json(user)
@@ -158,15 +173,36 @@ router.get('/:id',async(req,res)=>{
 
 //update
 //check adminLr
-router.put('/:id',async(req,res)=>{
+router.put('/admin/:id',auth,async(req,res)=>{
     try{
-        await User.findById(req.params._id)
+        if(!req.user.adminLr) return res.status(402).json("access denied")
+        await User.findById(req.params.id)
         .then((user)=>{
             if(!user) return res.status(402).json("Error Occured")
-            let user=await User.findByIdAndUpdate(req.body._id,{
+            let userUpdate=User.findByIdAndUpdate(req.params.id,{
                 profile:req.body.profile,
                 name:req.body.name,
-                adminLr:req.body.adminLr
+                adminLr:req.body.adminLr,
+                verify:req.body.verify
+            },{
+                new:true
+            })
+            res.status(200).json("Update Successfully")
+        })
+    }
+    catch(err){
+        console.log(err)
+    }
+})
+
+router.put('/:id',auth,async(req,res)=>{
+    try{
+        await User.findById(req.params.id)
+        .then((user)=>{
+            if(!user) return res.status(402).json("Error Occured")
+            let userUpdate=User.findByIdAndUpdate(req.params.id,{
+                profile:req.body.profile,
+                name:req.body.name,
             },{
                 new:true
             })
@@ -179,15 +215,19 @@ router.put('/:id',async(req,res)=>{
 })
 
 //delete
-router.delete('/:id',async(req,res)=>{
+router.delete('/:id',auth,async(req,res)=>{
     try{
-        await User.findByIdAndDelete(req.params._id)
+        if(!req.user.adminLr) return res.status(402).json("access denied")
+        await User.findByIdAndDelete(req.params.id)
         .then((user)=>{
             if(!user) return res.status(402).json("Error Occured")
-            res.status(200).json(user)
+            res.status(200).json("Delete Successfully")
         })
     }
     catch(err){
         console.log(err)
     }
 })
+
+
+module.exports=router

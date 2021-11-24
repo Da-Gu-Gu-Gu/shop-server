@@ -6,8 +6,8 @@ const cors=require('cors')
 
 
 //routes 
-// const user=require('./routes/user')
-// const product=require('./routes/product')
+const user=require('./routes/user')
+const product=require('./routes/product')
 // const order=require('./routes/order')
 
 //middleware
@@ -16,8 +16,8 @@ app.use(cors())
 app.use(express.json())
 
 
-// app.use('/api/user/',user)
-// app.use('/api/product',product)
+app.use('/api/user/',user)
+app.use('/api/product/',product)
 // app.use('/api/order/',order)
 
 mongoose.connect(process.env.MONGO_DB)
