@@ -21,10 +21,10 @@ router.post('/create',auth,async(req,res)=>{
 
 router.get('/getall',auth,async(req,res)=>{
     try{
-        if(!req.user.adminLr) return res.status(402).json("access denied")
+        if(!req.user.adminLr) return res.status(200).json("access denied")
         await Cart.find().populate("userId").populate({path:'products',populate:'productId'})
         .then((cart)=>{
-            if(!cart) return res.status(402).json("Error Occured")
+            if(!cart) return res.status(200).json("Error Occured")
             res.status(200).json(cart)
         })
     }
@@ -37,7 +37,7 @@ router.get('/:id',auth,async(req,res)=>{
     try{
         await Cart.findOne({userId:req.params.id}).populate("userId").populate({path:'products',populate:'productId'})
         .then((cart)=>{
-            if(!cart) return res.status(402).json("Error Occured")
+            if(!cart) return res.status(200).json("Error Occured")
             res.status(200).json(cart)
         })
     }
@@ -52,7 +52,7 @@ router.put('/:id',auth,async(req,res)=>{
     try{
         await Cart.findById(req.params.id)
         .then(async(cart)=>{
-            if(!cart) return res.status(402).json("cart not found")
+            if(!cart) return res.status(200).json("cart not found")
            await Cart.findByIdAndUpdate(req.params.id,{
                 $set:req.body
             },{
@@ -60,7 +60,7 @@ router.put('/:id',auth,async(req,res)=>{
             })
            
             // if(!productUpdate)
-            // return res.status(402).json('The product cannot be updated')
+            // return res.status(200).json('The product cannot be updated')
             // console.log(productUpdate)
             res.status(200).json("Update Successfully")
         })
@@ -75,7 +75,7 @@ router.delete('/:id',auth,async(req,res)=>{
     try{
         await Cart.findByIdAndDelete(req.params.id)
         .then((deleteLr)=>{
-            if(!deleteLr) return res.status(402).json("Error Occured")
+            if(!deleteLr) return res.status(200).json("Error Occured")
             res.status(200).json("Delete Successfully")
         })
     }
